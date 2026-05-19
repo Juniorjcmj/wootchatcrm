@@ -26,7 +26,13 @@ volumes:
 
 services:
   wppconnect:
-    image: ${WPP_IMAGE:-wppconnect/wppconnect-server:latest}
+    # O projeto não publica imagem oficial — Portainer builda direto do repo
+    # do GitHub. Em "Pull and redeploy" o build é refeito (mantendo cache).
+    # Se preferir builder localmente, troque por:  image: wppconnect:local
+    # e rode `docker build -t wppconnect:local https://github.com/wppconnect-team/wppconnect-server.git#main` antes.
+    build:
+      context: ${WPP_BUILD_CONTEXT:-https://github.com/wppconnect-team/wppconnect-server.git#main}
+    image: ${WPP_IMAGE:-wppconnect-local:latest}
     container_name: wppconnect
     restart: unless-stopped
     networks:

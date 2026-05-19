@@ -17,7 +17,12 @@ ser consumido pelo Wootchat CRM.
      ```
    - Deploy.
 
-3. **Confirma que subiu:** abre `https://wppconnect.wootchat.com.br/api-docs`
+3. **⚠ Primeira subida demora ~3–5 minutos** porque o Docker builda o
+   wppconnect-server direto do GitHub (não tem imagem oficial publicada).
+   Acompanhe em "Logs" — você vai ver o npm/yarn instalando dependências.
+   Builds subsequentes usam cache e são rápidos.
+
+4. **Confirma que subiu:** abre `https://wppconnect.wootchat.com.br/api-docs`
    no navegador — deve aparecer o Swagger UI.
 
 ## Como conectar o CRM
@@ -39,8 +44,13 @@ Ao criar, o CRM:
 
 ## Atualizar
 
-Stacks → seu stack WPPConnect → **Pull and redeploy** (puxa nova versão da imagem
-e recria o container preservando os volumes `wpp_tokens` e `wpp_userdata`).
+Stacks → seu stack WPPConnect → **Pull and redeploy**. Como o build é a
+partir do GitHub, isso refaz o build pegando o último commit do branch.
+Pra fixar uma versão, edite `WPP_BUILD_CONTEXT` no `.env` apontando pra
+uma tag:
+```
+WPP_BUILD_CONTEXT=https://github.com/wppconnect-team/wppconnect-server.git#v2.8.6
+```
 
 ## Volumes (não apague)
 
@@ -59,6 +69,16 @@ e recria o container preservando os volumes `wpp_tokens` e `wpp_userdata`).
 
 ## Troubleshooting
 
+- **"No log line matching the '' filter" no Portainer** → o container ainda
+  não terminou de buildar. Primeiro deploy demora 3-5min. Confirma em
+  Containers → wppconnect → status `Created/Building`.
+- **Build falha com "context cannot be empty"** → seu Docker engine não
+  suporta context de git remoto. Alternativa local:
+  ```bash
+  docker build -t wppconnect-local:latest \
+    https://github.com/wppconnect-team/wppconnect-server.git#main
+  ```
+  Aí remove o bloco `build:` do compose e deixa só `image: wppconnect-local:latest`.
 - **"Failed to launch the browser process"** no log → o `shm_size: 2gb` no
   compose resolve. Se persistir, sobe pra `4gb`.
 - **QR não aparece** → veja os logs do container. Pode ser que a SECRET_KEY
