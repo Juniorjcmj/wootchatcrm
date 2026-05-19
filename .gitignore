@@ -1,0 +1,41 @@
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# Claude Code (configs locais com permissões / segredos)
+.claude/settings.local.json
+.claude/cache/
+
+# Java / Maven (backend)
+wootchatcrm_api/target/
+wootchatcrm_api/.mvn/wrapper/maven-wrapper.jar
+wootchatcrm_api/HELP.md
+
+# Logs
+**/logs/
+*.log
+
+# Uploads / dados gerados em runtime
+wootchatcrm_api/files/uploads/
+wootchatcrm_api/uploads/
+
+# Ambientes locais — segredos não vão pro repo
+.env
+.env.local
+.env.*.local
+*.local.env
+
+# Dependências node (caso entrem futuramente)
+node_modules/
+
+# Build do frontend (caso entre futuramente)
+wootchatcrm_frontend/dist/
+wootchatcrm_frontend/build/
+
+# Banco local SQLite/PostgreSQL ad-hoc
+*.db
+*.sqlite
+*.sqlite3

@@ -1,0 +1,26 @@
+# Adicionar estas propriedades ao bloco `app:` do application.yml existente
+# Dentro de cada profile (dev e prod) conforme indicado
+
+# ─────────────────────────────────────────────────────────────
+# BLOCO GLOBAL (dentro de app:, compartilhado por todos os profiles)
+# ─────────────────────────────────────────────────────────────
+app:
+  # ... propriedades existentes ...
+
+  evolution:
+    base-url: ${EVOLUTION_BASE_URL:https://evovo.wootchat.com.br}
+    api-key:  ${EVOLUTION_API_KEY:<EVOLUTION_API_KEY>}
+
+# ─────────────────────────────────────────────────────────────
+# .env.local (desenvolvimento)
+# ─────────────────────────────────────────────────────────────
+# EVOLUTION_BASE_URL=https://evovo.wootchat.com.br
+# EVOLUTION_API_KEY=<EVOLUTION_API_KEY>
+# WEBHOOK_BASE_URL=https://SEU-NGROK-OU-DOMINIO.ngrok.io/api
+
+# ─────────────────────────────────────────────────────────────
+# .env (produção na VPS)
+# ─────────────────────────────────────────────────────────────
+# EVOLUTION_BASE_URL=https://evovo.wootchat.com.br
+# EVOLUTION_API_KEY=<EVOLUTION_API_KEY>
+# WEBHOOK_BASE_URL=https://api.seucrm.com.br/api

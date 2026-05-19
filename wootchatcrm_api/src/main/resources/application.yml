@@ -1,0 +1,322 @@
+# ══════════════════════════════════════════════════════════════
+# application.yml — Configuração base (compartilhada por todos os profiles)
+# ══════════════════════════════════════════════════════════════
+
+spring:
+  application:
+    name: crm-backend
+
+  # ─────────────────────────────────────────────────────────────
+  # PROFILES
+  # ─────────────────────────────────────────────────────────────
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # ─────────────────────────────────────────────────────────────
+  # JPA / HIBERNATE
+  # ─────────────────────────────────────────────────────────────
+  jpa:
+    open-in-view: false                 # evita lazy loading fora da transação
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        jdbc:
+          time_zone: UTC                # sempre UTC no banco
+          batch_size: 25
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
+        cache:
+          use_second_level_cache: false # Redis gerencia cache de aplicação
+
+  # ─────────────────────────────────────────────────────────────
+  # FLYWAY
+  # ─────────────────────────────────────────────────────────────
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    out-of-order: false
+    encoding: UTF-8
+
+  # ─────────────────────────────────────────────────────────────
+  # JACKSON
+  # ─────────────────────────────────────────────────────────────
+  jackson:
+    default-property-inclusion: NON_NULL
+    serialization:
+      write-dates-as-timestamps: false
+      indent-output: false
+    deserialization:
+      fail-on-unknown-properties: false
+    time-zone: UTC
+
+  # ─────────────────────────────────────────────────────────────
+  # UPLOAD DE ARQUIVOS
+  # ─────────────────────────────────────────────────────────────
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 20MB
+      max-request-size: 25MB
+
+  # ─────────────────────────────────────────────────────────────
+  # CACHE
+  # ─────────────────────────────────────────────────────────────
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000             # 10 minutos padrão (ms)
+      cache-null-values: false
+
+  # ─────────────────────────────────────────────────────────────
+  # THREADS VIRTUAIS (Java 21 Project Loom)
+  # ─────────────────────────────────────────────────────────────
+  threads:
+    virtual:
+      enabled: true
+
+# ─────────────────────────────────────────────────────────────
+# SERVIDOR
+# ─────────────────────────────────────────────────────────────
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/plain
+    min-response-size: 2048
+  http2:
+    enabled: true
+  error:
+    include-message: never             # nunca expor stack trace em prod
+    include-stacktrace: never
+    include-binding-errors: never
+
+# ─────────────────────────────────────────────────────────────
+# ACTUATOR
+# ─────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+
+# ─────────────────────────────────────────────────────────────
+# SPRINGDOC / SWAGGER
+# ─────────────────────────────────────────────────────────────
+springdoc:
+  api-docs:
+    path: /api/v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui/index.html
+    enabled: true
+    display-request-duration: true
+    tags-sorter: alpha
+    operations-sorter: alpha
+    show-actuator: false
+
+# ─────────────────────────────────────────────────────────────
+# CONFIGURAÇÕES DA APLICAÇÃO (custom)
+# ─────────────────────────────────────────────────────────────
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-expiration: 900        # 15 minutos (segundos)
+    refresh-token-expiration: 2592000   # 30 dias (segundos)
+
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
+
+  encryption:
+    secret-key: ${ENCRYPTION_KEY}       # AES-256 para credentials_enc
+
+  whatsapp:
+    webhook-base-url: ${WEBHOOK_BASE_URL:http://localhost:8080/api}
+    retry-max-attempts: 3
+    retry-delay-ms: 1000
+
+  evolution:
+    base-url: ${EVOLUTION_BASE_URL:https://evogo.wootchat.com.br}
+    api-key:  ${EVOLUTION_API_KEY:}
+
+  pagination:
+    default-page-size: 20
+    max-page-size: 100
+
+---
+# ══════════════════════════════════════════════════════════════
+# PROFILE: dev
+# ══════════════════════════════════════════════════════════════
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  # Banco na VPS — sobrescreva via env (SPRING_DATASOURCE_URL/USERNAME/PASSWORD)
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/crm_db}
+    username: ${SPRING_DATASOURCE_USERNAME:crm_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      pool-name: HikariPool-Dev
+
+  jpa:
+    hibernate:
+      ddl-auto: validate              # Flyway controla o schema; Hibernate só valida
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Redis na VPS — sobrescreva via env (SPRING_REDIS_HOST/PORT/PASSWORD)
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:localhost}
+      port: ${SPRING_REDIS_PORT:6379}
+      password: ${SPRING_REDIS_PASSWORD:}
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 1
+
+  flyway:
+    clean-disabled: false             # permite flyway:clean em dev
+
+# Logs verbosos em dev
+logging:
+  level:
+    root: INFO
+    com.seucrm: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE
+    org.springframework.security: DEBUG
+    org.springframework.web.socket: DEBUG
+  pattern:
+    console: "%clr(%d{HH:mm:ss.SSS}){faint} %clr(%-5level) %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} : %m%n"
+
+server:
+  error:
+    include-message: always            # mostra mensagens de erro em dev
+    include-stacktrace: on-param
+
+springdoc:
+  swagger-ui:
+    enabled: true                      # Swagger ativo em dev
+
+app:
+  jwt:
+    # Dev: defina JWT_SECRET no .env local (mínimo 256 bits).
+    secret: ${JWT_SECRET:dev-secret-key-change-in-production-must-be-at-least-256-bits-long}
+    access-token-expiration: 86400     # 24h em dev para não ficar fazendo login
+    refresh-token-expiration: 2592000
+  encryption:
+    # AES-256 (32 bytes = 64 hex chars). Gere com: openssl rand -hex 32 e exporte como ENCRYPTION_KEY.
+    secret-key: ${ENCRYPTION_KEY:}
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://localhost:5500,http://127.0.0.1:5500,http://127.0.0.1:5173}
+  whatsapp:
+    webhook-base-url: ${WEBHOOK_BASE_URL:http://localhost:8080/api}
+  evolution:
+    base-url: ${EVOLUTION_BASE_URL:https://evogo.wootchat.com.br}
+    api-key:  ${EVOLUTION_API_KEY:}
+
+---
+# ══════════════════════════════════════════════════════════════
+# PROFILE: prod
+# ══════════════════════════════════════════════════════════════
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      keepalive-time: 60000
+      pool-name: HikariPool-Prod
+      leak-detection-threshold: 60000  # alerta se conexão ficar aberta > 60s
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:redis}
+      port: ${SPRING_REDIS_PORT:6379}
+      password: ${SPRING_REDIS_PASSWORD:}
+      ssl:
+        enabled: ${SPRING_REDIS_SSL:false}
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 4
+          max-wait: 2000ms
+
+  flyway:
+    clean-disabled: true               # NUNCA limpar banco em produção
+
+# Logs estruturados em JSON para Loki/Grafana
+logging:
+  level:
+    root: WARN
+    com.seucrm: INFO
+    org.hibernate.SQL: WARN
+    org.springframework.security: WARN
+  pattern:
+    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%-5level","logger":"%logger{36}","message":"%msg"}%n'
+
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+
+springdoc:
+  swagger-ui:
+    enabled: false                     # Swagger DESABILITADO em produção
+  api-docs:
+    enabled: false
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-expiration: 900       # 15 minutos em prod
+    refresh-token-expiration: 2592000
+  encryption:
+    secret-key: ${ENCRYPTION_KEY}
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS}
+  whatsapp:
+    webhook-base-url: ${WEBHOOK_BASE_URL}

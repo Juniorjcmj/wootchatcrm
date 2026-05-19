@@ -1,0 +1,305 @@
+/* ============================================================
+   Linear Design System — Tokens
+   Source: linear.app marketing surface (provided spec).
+   Drop-in: link this CSS file from your HTML head.
+   ============================================================ */
+
+/* -- Fonts -------------------------------------------------- */
+/* Linear's custom families (Linear Display, Linear Text, Linear Mono)
+   are proprietary. We substitute Inter (local variable font) for
+   display + text, and JetBrains Mono via Google Fonts for mono.
+   To use the real Linear .woff2 files, replace the Inter src below. */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  /* ============================================
+     COLORS — Brand & accent
+     ============================================ */
+  --color-primary:        #5e6ad2;  /* Lavender-blue. Scarce: CTA, focus, link emphasis. */
+  --color-primary-hover:  #828fff;  /* Lighter lavender on hover. */
+  --color-primary-focus:  #5e69d1;  /* Focus-ring tint. */
+  --color-brand-secure:   #7a7fad;  /* Muted lavender-gray for security surfaces. */
+  --color-on-primary:     #ffffff;
+
+  /* ============================================
+     COLORS — Surface ladder (dark canvas, four steps up)
+     ============================================ */
+  --color-canvas:           #010102;  /* Default page bg. Near-pure black with faint blue. */
+  --color-surface-1:        #0d0e10;  /* Cards, panels. */
+  --color-surface-2:        #16171a;  /* Featured / hovered cards. */
+  --color-surface-3:        #1c1d20;  /* Sub-nav, dropdowns. */
+  --color-surface-4:        #232428;  /* Deepest lifted surface. */
+  --color-hairline:         #23252a;  /* 1px borders, dividers. */
+  --color-hairline-strong:  #2e3036;  /* Focused inputs, hovered cards. */
+  --color-hairline-tertiary:#1a1b1e;  /* Tertiary borders, nested surfaces. */
+
+  --color-inverse-canvas:   #ffffff;  /* White-CTA section openers. */
+  --color-inverse-surface-1:#f4f5f8;
+  --color-inverse-surface-2:#e9ebf0;
+  --color-inverse-ink:      #08090a;
+
+  /* ============================================
+     COLORS — Text (light gray, not pure white)
+     ============================================ */
+  --color-ink:           #f7f8f8;  /* Headlines, emphasized body. */
+  --color-ink-muted:     #d0d6e0;  /* Meta info on hero panels. */
+  --color-ink-subtle:    #8a8f98;  /* Deselected tabs, footer columns. */
+  --color-ink-tertiary:  #62666d;  /* Disabled, footnotes. */
+
+  /* ============================================
+     COLORS — Semantic (the ONLY semantic chromatic)
+     ============================================ */
+  --color-semantic-success: #27a644;
+  --color-semantic-overlay: rgba(0, 0, 0, 0.6);
+
+  /* In-product color tags (only inside product screenshots) */
+  --color-tag-red:    #eb5757;
+  --color-tag-orange: #f2994a;
+  --color-tag-yellow: #f2c94c;
+  --color-tag-green:  #4cb782;
+  --color-tag-blue:   #5e6ad2;
+  --color-tag-purple: #9b8afb;
+
+  /* ============================================
+     TYPE — Families
+     ============================================ */
+  --font-display: "Inter", "SF Pro Display", -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-text:    "Inter", "SF Pro Text", -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* ============================================
+     TYPE — Scale (size / weight / line-height / tracking)
+     ============================================ */
+  --text-display-xl-size: 80px;  --text-display-xl-lh: 1.05;  --text-display-xl-ls: -3.0px;
+  --text-display-lg-size: 56px;  --text-display-lg-lh: 1.10;  --text-display-lg-ls: -1.8px;
+  --text-display-md-size: 40px;  --text-display-md-lh: 1.15;  --text-display-md-ls: -1.0px;
+  --text-headline-size:   28px;  --text-headline-lh:   1.20;  --text-headline-ls:   -0.6px;
+  --text-card-title-size: 22px;  --text-card-title-lh: 1.25;  --text-card-title-ls: -0.4px;
+  --text-subhead-size:    20px;  --text-subhead-lh:    1.40;  --text-subhead-ls:    -0.2px;
+  --text-body-lg-size:    18px;  --text-body-lg-lh:    1.50;  --text-body-lg-ls:    -0.1px;
+  --text-body-size:       16px;  --text-body-lh:       1.50;  --text-body-ls:       -0.05px;
+  --text-body-sm-size:    14px;  --text-body-sm-lh:    1.50;  --text-body-sm-ls:    0;
+  --text-caption-size:    12px;  --text-caption-lh:    1.40;  --text-caption-ls:    0;
+  --text-button-size:     14px;  --text-button-lh:     1.20;  --text-button-ls:     0;
+  --text-eyebrow-size:    13px;  --text-eyebrow-lh:    1.30;  --text-eyebrow-ls:    0.4px;
+  --text-mono-size:       13px;  --text-mono-lh:       1.50;  --text-mono-ls:       0;
+
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semi:    600;
+  --weight-bold:    700;
+
+  /* ============================================
+     SPACING — 4px base
+     ============================================ */
+  --space-xxs:     4px;
+  --space-xs:      8px;
+  --space-sm:     12px;
+  --space-md:     16px;
+  --space-lg:     24px;
+  --space-xl:     32px;
+  --space-xxl:    48px;
+  --space-section:96px;
+
+  /* ============================================
+     RADIUS
+     ============================================ */
+  --radius-xs:    4px;
+  --radius-sm:    6px;
+  --radius-md:    8px;   /* buttons, inputs */
+  --radius-lg:   12px;   /* cards */
+  --radius-xl:   16px;   /* product screenshot panels */
+  --radius-xxl:  24px;   /* oversized CTA banners (rare) */
+  --radius-pill:9999px;
+  --radius-full:9999px;
+
+  /* ============================================
+     ELEVATION (carried by surface, not shadow)
+     ============================================ */
+  --elev-1-bg:     var(--color-surface-1);
+  --elev-1-border: 1px solid var(--color-hairline);
+  --elev-2-bg:     var(--color-surface-2);
+  --elev-2-border: 1px solid var(--color-hairline-strong);
+  --elev-3-bg:     var(--color-surface-3);
+
+  /* Subtle white edge highlight (top edge) on lifted panels */
+  --edge-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+
+  /* Focus ring */
+  --focus-ring: 0 0 0 2px rgba(94, 105, 210, 0.5);
+
+  /* Layout */
+  --container-max: 1280px;
+  --nav-height:    56px;
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-base: 150ms;
+  --duration-slow: 200ms;
+}
+
+/* ============================================================
+   BASE / RESET
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-text);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-lh);
+  letter-spacing: var(--text-body-ls);
+  font-weight: var(--weight-regular);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ============================================================
+   SEMANTIC TYPE — drop-in classes (and bare tags)
+   ============================================================ */
+.t-display-xl, h1.display-xl {
+  font-family: var(--font-display);
+  font-size: var(--text-display-xl-size);
+  line-height: var(--text-display-xl-lh);
+  letter-spacing: var(--text-display-xl-ls);
+  font-weight: var(--weight-semi);
+  color: var(--color-ink);
+  margin: 0;
+}
+.t-display-lg {
+  font-family: var(--font-display);
+  font-size: var(--text-display-lg-size);
+  line-height: var(--text-display-lg-lh);
+  letter-spacing: var(--text-display-lg-ls);
+  font-weight: var(--weight-semi);
+  color: var(--color-ink);
+  margin: 0;
+}
+.t-display-md {
+  font-family: var(--font-display);
+  font-size: var(--text-display-md-size);
+  line-height: var(--text-display-md-lh);
+  letter-spacing: var(--text-display-md-ls);
+  font-weight: var(--weight-semi);
+  color: var(--color-ink);
+  margin: 0;
+}
+.t-headline {
+  font-family: var(--font-display);
+  font-size: var(--text-headline-size);
+  line-height: var(--text-headline-lh);
+  letter-spacing: var(--text-headline-ls);
+  font-weight: var(--weight-semi);
+  color: var(--color-ink);
+  margin: 0;
+}
+.t-card-title {
+  font-family: var(--font-display);
+  font-size: var(--text-card-title-size);
+  line-height: var(--text-card-title-lh);
+  letter-spacing: var(--text-card-title-ls);
+  font-weight: var(--weight-medium);
+  color: var(--color-ink);
+  margin: 0;
+}
+.t-subhead {
+  font-family: var(--font-text);
+  font-size: var(--text-subhead-size);
+  line-height: var(--text-subhead-lh);
+  letter-spacing: var(--text-subhead-ls);
+  font-weight: var(--weight-regular);
+  color: var(--color-ink-muted);
+  margin: 0;
+}
+.t-body-lg {
+  font-family: var(--font-text);
+  font-size: var(--text-body-lg-size);
+  line-height: var(--text-body-lg-lh);
+  letter-spacing: var(--text-body-lg-ls);
+}
+.t-body {
+  font-family: var(--font-text);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-lh);
+  letter-spacing: var(--text-body-ls);
+}
+.t-body-sm {
+  font-family: var(--font-text);
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-lh);
+  letter-spacing: var(--text-body-sm-ls);
+}
+.t-caption {
+  font-family: var(--font-text);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-lh);
+  color: var(--color-ink-subtle);
+}
+.t-button {
+  font-family: var(--font-text);
+  font-size: var(--text-button-size);
+  line-height: var(--text-button-lh);
+  font-weight: var(--weight-medium);
+}
+.t-eyebrow {
+  font-family: var(--font-text);
+  font-size: var(--text-eyebrow-size);
+  line-height: var(--text-eyebrow-lh);
+  letter-spacing: var(--text-eyebrow-ls);
+  font-weight: var(--weight-medium);
+  color: var(--color-ink-subtle);
+  text-transform: none; /* sentence case! */
+}
+.t-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-size);
+  line-height: var(--text-mono-lh);
+  font-weight: var(--weight-regular);
+}
+
+h1 { font: var(--weight-semi) var(--text-display-lg-size)/var(--text-display-lg-lh) var(--font-display); letter-spacing: var(--text-display-lg-ls); margin: 0; }
+h2 { font: var(--weight-semi) var(--text-display-md-size)/var(--text-display-md-lh) var(--font-display); letter-spacing: var(--text-display-md-ls); margin: 0; }
+h3 { font: var(--weight-semi) var(--text-headline-size)/var(--text-headline-lh) var(--font-display); letter-spacing: var(--text-headline-ls); margin: 0; }
+h4 { font: var(--weight-medium) var(--text-card-title-size)/var(--text-card-title-lh) var(--font-display); letter-spacing: var(--text-card-title-ls); margin: 0; }
+p  { margin: 0; }
+code, pre, kbd { font-family: var(--font-mono); font-size: var(--text-mono-size); }
+
+a {
+  color: var(--color-ink);
+  text-decoration: none;
+  transition: color var(--duration-base) var(--ease-standard);
+}
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ============================================================
+   UTILITY — ink colors
+   ============================================================ */
+.ink         { color: var(--color-ink); }
+.ink-muted   { color: var(--color-ink-muted); }
+.ink-subtle  { color: var(--color-ink-subtle); }
+.ink-tertiary{ color: var(--color-ink-tertiary); }
+.ink-primary { color: var(--color-primary); }
+.ink-success { color: var(--color-semantic-success); }
+
+/* ============================================================
+   UTILITY — surfaces
+   ============================================================ */
+.surface-canvas   { background: var(--color-canvas); }
+.surface-1        { background: var(--color-surface-1); }
+.surface-2        { background: var(--color-surface-2); }
+.surface-3        { background: var(--color-surface-3); }
+.surface-4        { background: var(--color-surface-4); }
+.hairline-border  { border: 1px solid var(--color-hairline); }
+
+/* Edge highlight on lifted panels */
+.lifted {
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--edge-highlight);
+}
