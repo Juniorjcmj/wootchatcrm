@@ -1,0 +1,96 @@
+# ============================================================
+# WAHA — WhatsApp HTTP API (auto-hospedado)
+# Stack independente do Wootchat CRM. Suba como Stack separada no Portainer.
+#
+#   waha.wootchat.com.br  → porta 3000 do container
+#
+# Rede: OrionNet (mesma do CRM/Traefik), externa.
+# Pré-requisitos no host:
+#   - Traefik rodando com certresolver "letsencrypt" e entrypoint "websecure"
+#   - DNS waha.wootchat.com.br apontando pro host do Traefik
+#
+# Variáveis: definidas em .env (ver .env.example).
+# ============================================================
+
+version: "3.9"
+
+networks:
+  OrionNet:
+    external: true
+
+volumes:
+  waha_sessions:
+    driver: local
+  waha_files:
+    driver: local
+
+services:
+  waha:
+    # devlikeapro/waha       → Core (free, mensagens texto/imagem/voz/doc)
+    # devlikeapro/waha-plus  → Plus (paid, suporta multi-device, story, etc.)
+    image: ${WAHA_IMAGE:-devlikeapro/waha:latest}
+    container_name: waha
+    restart: unless-stopped
+    networks:
+      - OrionNet
+
+    environment:
+      # ── Auth (OBRIGATÓRIO) ──────────────────────────────
+      # Esta chave é usada no header X-Api-Key em TODAS as requests.
+      # Gere com:  openssl rand -hex 24
+      WHATSAPP_API_KEY: ${WHATSAPP_API_KEY}
+
+      # Login básico do dashboard (Swagger UI) — não deixe em branco em prod
+      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USERNAME:-admin}
+      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD}
+
+      # ── Sessões / persistência ──────────────────────────
+      # Dirs montados em volumes pra sobreviver a restart/redeploy
+      WHATSAPP_SESSIONS_DIR: /app/sessions
+      WHATSAPP_FILES_FOLDER: /app/files
+      # Tempo (segundos) que arquivos enviados/recebidos ficam no disco
+      WHATSAPP_FILES_LIFETIME: ${WHATSAPP_FILES_LIFETIME:-86400}
+
+      # ── Comportamento ───────────────────────────────────
+      # Não mostra QR no terminal — preferimos via API (o CRM puxa)
+      WAHA_PRINT_QR: ${WAHA_PRINT_QR:-false}
+      # Auto-restart de sessões em "FAILED"
+      WHATSAPP_RESTART_DELAY: ${WHATSAPP_RESTART_DELAY:-5000}
+      # Quantas mensagens deixar em buffer interno
+      WHATSAPP_HOOK_RETRIES: ${WHATSAPP_HOOK_RETRIES:-3}
+
+      # ── Webhook global (opcional) ───────────────────────
+      # O Wootchat CRM já configura webhook *por sessão* (recomendado).
+      # Deixe vazio aqui pra não duplicar eventos.
+      WHATSAPP_HOOK_URL: ${WHATSAPP_HOOK_URL:-}
+      WHATSAPP_HOOK_EVENTS: ${WHATSAPP_HOOK_EVENTS:-}
+
+      # ── Tunning ─────────────────────────────────────────
+      # Quantos clientes simultâneos por instância (Core: 1, Plus: 100+)
+      WHATSAPP_DEFAULT_ENGINE: ${WHATSAPP_DEFAULT_ENGINE:-WEBJS}
+
+    volumes:
+      - waha_sessions:/app/sessions
+      - waha_files:/app/files
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=OrionNet"
+
+      - "traefik.http.routers.waha.rule=Host(`waha.wootchat.com.br`)"
+      - "traefik.http.routers.waha.entrypoints=websecure"
+      - "traefik.http.routers.waha.tls=true"
+      - "traefik.http.routers.waha.tls.certresolver=letsencrypt"
+      - "traefik.http.services.waha.loadbalancer.server.port=3000"
+
+      # Headers de segurança
+      - "traefik.http.middlewares.waha-headers.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.waha-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.routers.waha.middlewares=waha-headers"
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/server/version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
