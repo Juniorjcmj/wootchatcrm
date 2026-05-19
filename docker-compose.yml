@@ -1,0 +1,107 @@
+# ============================================================
+# Wootchat CRM — Stack para Portainer com Traefik (rede OrionNet)
+#
+#   chatcrm.wootchat.com.br  → frontend
+#   api.wootchat.com.br      → backend
+#
+# Pré-requisitos no host:
+#   - Traefik rodando, conectado à rede externa "OrionNet"
+#   - Certresolver "letsencrypt" configurado no Traefik
+#   - PostgreSQL e Redis acessíveis (na própria OrionNet ou em outra)
+#
+# Variáveis: definidas em .env (ver .env.production.example).
+# ============================================================
+
+version: "3.9"
+
+networks:
+  OrionNet:
+    external: true
+
+volumes:
+  wootchat_uploads:
+    driver: local
+
+services:
+  api:
+    image: ghcr.io/juniorjcmj/wootchatcrm-api:latest
+    container_name: wootchat-api
+    restart: unless-stopped
+    networks:
+      - OrionNet
+    environment:
+      # ── Spring profile ──────────────────────────────────
+      SPRING_PROFILES_ACTIVE: prod
+
+      # ── Banco PostgreSQL ────────────────────────────────
+      SPRING_DATASOURCE_URL:      ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+
+      # ── Redis ───────────────────────────────────────────
+      SPRING_REDIS_HOST:     ${SPRING_REDIS_HOST}
+      SPRING_REDIS_PORT:     ${SPRING_REDIS_PORT:-6379}
+      SPRING_REDIS_PASSWORD: ${SPRING_REDIS_PASSWORD:-}
+
+      # ── JWT / Criptografia ──────────────────────────────
+      JWT_SECRET:     ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+
+      # ── Evolution Go (WhatsApp) ─────────────────────────
+      EVOLUTION_BASE_URL: ${EVOLUTION_BASE_URL:-https://evogo.wootchat.com.br}
+      EVOLUTION_API_KEY:  ${EVOLUTION_API_KEY}
+
+      # ── CORS + Webhook ──────────────────────────────────
+      ALLOWED_ORIGINS:    ${ALLOWED_ORIGINS:-https://chatcrm.wootchat.com.br}
+      WEBHOOK_BASE_URL:   ${WEBHOOK_BASE_URL:-https://api.wootchat.com.br/api}
+
+      # ── JVM tuning (opcional) ───────────────────────────
+      JAVA_OPTS: ${JAVA_OPTS:--XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0}
+
+    volumes:
+      - wootchat_uploads:/app/files/uploads
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=OrionNet"
+
+      # HTTPS via Traefik (ajuste certresolver pro nome do seu)
+      - "traefik.http.routers.wootchat-api.rule=Host(`api.wootchat.com.br`)"
+      - "traefik.http.routers.wootchat-api.entrypoints=websecure"
+      - "traefik.http.routers.wootchat-api.tls=true"
+      - "traefik.http.routers.wootchat-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.wootchat-api.loadbalancer.server.port=8080"
+
+      # WebSocket (SockJS) — mesmo router; nada de especial precisa pra HTTP/1.1 WS
+
+      # Headers de segurança
+      - "traefik.http.middlewares.wootchat-api-headers.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.wootchat-api-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.routers.wootchat-api.middlewares=wootchat-api-headers"
+
+  frontend:
+    image: ghcr.io/juniorjcmj/wootchatcrm-frontend:latest
+    container_name: wootchat-frontend
+    restart: unless-stopped
+    networks:
+      - OrionNet
+    depends_on:
+      - api
+    environment:
+      # URL pública da API que o navegador chama
+      API_BASE_URL: ${API_BASE_URL:-https://api.wootchat.com.br/api}
+      WS_URL:       ${WS_URL:-https://api.wootchat.com.br/api/ws}
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=OrionNet"
+
+      - "traefik.http.routers.wootchat-frontend.rule=Host(`chatcrm.wootchat.com.br`)"
+      - "traefik.http.routers.wootchat-frontend.entrypoints=websecure"
+      - "traefik.http.routers.wootchat-frontend.tls=true"
+      - "traefik.http.routers.wootchat-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.wootchat-frontend.loadbalancer.server.port=80"
+
+      - "traefik.http.middlewares.wootchat-front-headers.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.wootchat-front-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.routers.wootchat-frontend.middlewares=wootchat-front-headers"

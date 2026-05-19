@@ -1,0 +1,26 @@
+# Build / runtime
+target
+logs
+files/uploads
+*.log
+
+# Git / IDE
+.git
+.gitignore
+.DS_Store
+.claude
+.vscode
+.idea
+*.iml
+
+# Maven wrapper local (não usado no build do Dockerfile)
+.mvn/wrapper/maven-wrapper.jar
+
+# Docker / docs
+Dockerfile
+.dockerignore
+README.md
+backend-architecture-crm.md
+
+# Snippets/rascunhos
+files-4

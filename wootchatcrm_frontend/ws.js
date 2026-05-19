@@ -11,8 +11,11 @@
 
     const token = (JSON.parse(localStorage.getItem("crm-auth") || "{}")).accessToken || "";
 
+    // URL injetada em runtime via /config.js (WS_URL).
+    const wsUrl = (window.__WS_URL__ && window.__WS_URL__.trim()) || "http://localhost:8080/api/ws";
+
     client = new StompJs.Client({
-      webSocketFactory: () => new SockJS("http://localhost:8080/api/ws"),
+      webSocketFactory: () => new SockJS(wsUrl),
       connectHeaders: { Authorization: "Bearer " + token },
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,

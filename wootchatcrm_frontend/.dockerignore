@@ -1,0 +1,16 @@
+# Coisas que NÃO devem ir pro /usr/share/nginx/html/
+Dockerfile
+.dockerignore
+nginx.conf
+docker-entrypoint.sh
+config.template.js
+config.js
+logs
+*.log
+.git
+.gitignore
+.DS_Store
+.claude
+.vscode
+.idea
+node_modules

@@ -2,7 +2,9 @@
 // Exposto globalmente como window.CrmApi
 
 (function () {
-  const BASE = "http://localhost:8080/api";
+  // BASE é injetado em runtime via /config.js (gerado pelo container a partir
+  // de API_BASE_URL). Fallback é localhost pra desenvolvimento sem Docker.
+  const BASE = (window.__API_BASE__ && window.__API_BASE__.trim()) || "http://localhost:8080/api";
 
   // ── Token JWT ──────────────────────────────────────────────
   function getToken() {

@@ -4700,6 +4700,11 @@ html[data-theme="light"] .topbar { background: var(--wc-content-bg); }
 
   </style>
 
+  <!-- Config injetada em runtime pelo container (API_BASE_URL / WS_URL). -->
+  <!-- Em desenvolvimento sem Docker o arquivo pode não existir; o app
+       cai no fallback http://localhost:8080. -->
+  <script src="config.js" onerror="console.info('[wootchat] config.js ausente, usando defaults locais')"></script>
+
   <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
 
