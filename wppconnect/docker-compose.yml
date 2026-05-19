@@ -4,11 +4,16 @@
 #
 #   wppconnect.wootchat.com.br  → porta 21465 do container
 #
-# Rede: OrionNet (mesma do CRM/Traefik), externa.
-# Pré-requisitos no host:
-#   - Traefik rodando com certresolver "letsencrypt" e entrypoint "websecure"
-#   - DNS wppconnect.wootchat.com.br apontando pro host do Traefik
+# Como o projeto não publica imagem Docker oficial, este compose builda
+# a imagem localmente a partir do Dockerfile deste diretório (que clona
+# o repo do GitHub em build-time e injeta SECRET_KEY em runtime).
 #
+# No Portainer, use a opção "Repository" apontando pra este repositório
+# (Juniorjcmj/wootchatcrm) com path `wppconnect/`. O Portainer vai
+# encontrar o docker-compose.yml e buildar o Dockerfile junto.
+#
+# Rede: OrionNet (mesma do CRM/Traefik), externa.
+# Pré-requisitos: DNS wppconnect.wootchat.com.br → host do Traefik.
 # Variáveis: definidas em .env (ver .env.example).
 # ============================================================
 
@@ -26,56 +31,32 @@ volumes:
 
 services:
   wppconnect:
-    # O projeto não publica imagem oficial — Portainer builda direto do repo
-    # do GitHub. Em "Pull and redeploy" o build é refeito (mantendo cache).
-    # Se preferir builder localmente, troque por:  image: wppconnect:local
-    # e rode `docker build -t wppconnect:local https://github.com/wppconnect-team/wppconnect-server.git#main` antes.
     build:
-      context: ${WPP_BUILD_CONTEXT:-https://github.com/wppconnect-team/wppconnect-server.git#main}
-    image: ${WPP_IMAGE:-wppconnect-local:latest}
+      context: .
+      args:
+        # Pode trocar pra uma tag (ex.: v2.10.0) pra fixar versão
+        WPP_REF: ${WPP_REF:-main}
+    image: wppconnect-local:${WPP_REF:-main}
     container_name: wppconnect
     restart: unless-stopped
     networks:
       - OrionNet
 
     environment:
-      # ── Auth (OBRIGATÓRIO) ──────────────────────────────
-      # Esta chave é usada UMA vez por sessão para gerar o Bearer token.
-      # Gere com:  openssl rand -hex 32
-      SECRET_KEY: ${SECRET_KEY}
-
-      # Host/porta (não troque se não souber)
-      HOST: 0.0.0.0
-      PORT: 21465
-
-      # Nome do "dispositivo" que aparece no WhatsApp (Aparelhos conectados)
+      # Injetado em runtime pelo entrypoint dentro de dist/config.js
+      SECRET_KEY:  ${SECRET_KEY}
       DEVICE_NAME: ${DEVICE_NAME:-Wootchat CRM}
+      WPP_HOST:    ${WPP_HOST:-http://localhost}
+      WPP_PORT:    ${WPP_PORT:-21465}
 
-      # Engine: deixar VENOM ou WPPCONNECT (padrão whatsapp-web.js fork)
-      ENGINE: ${ENGINE:-WPPCONNECT}
-
-      # Modo headless do Puppeteer
-      HEADLESS: ${HEADLESS:-true}
-
-      # Auto-fecha sessões inativas após X minutos (0 = nunca)
-      AUTO_CLOSE: ${AUTO_CLOSE:-0}
-
-      # Locale (atende a maior parte dos casos)
-      DEFAULT_LANG: ${DEFAULT_LANG:-pt_BR}
-
-      # ── Webhook ─────────────────────────────────────────
-      # NÃO definir aqui — o CRM já configura webhook por sessão automaticamente
-      # ao criar a conexão (apontando para /v1/webhooks/wppconnect/{connectionId}).
-
-      # ── Performance ─────────────────────────────────────
-      # Limita o nº máximo de listeners do Node EventEmitter
+      # Heap do Node (1 sessão ≈ 1 Chromium ≈ ~500MB)
       NODE_OPTIONS: ${NODE_OPTIONS:---max-old-space-size=2048}
 
     volumes:
       - wpp_tokens:/usr/src/wpp-server/tokens
       - wpp_userdata:/usr/src/wpp-server/userDataDir
 
-    # WPPConnect usa o Chromium do Puppeteer — precisa de SHM > 64MB default
+    # Chromium precisa de SHM maior que o default (64MB)
     shm_size: "2gb"
 
     labels:
@@ -88,14 +69,6 @@ services:
       - "traefik.http.routers.wppconnect.tls.certresolver=letsencrypt"
       - "traefik.http.services.wppconnect.loadbalancer.server.port=21465"
 
-      # Headers de segurança
       - "traefik.http.middlewares.wppconnect-headers.headers.stsSeconds=31536000"
       - "traefik.http.middlewares.wppconnect-headers.headers.stsIncludeSubdomains=true"
       - "traefik.http.routers.wppconnect.middlewares=wppconnect-headers"
-
-    healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:21465/api/healthz || exit 0"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
