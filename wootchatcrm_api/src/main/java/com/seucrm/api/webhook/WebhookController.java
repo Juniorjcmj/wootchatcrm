@@ -49,37 +49,9 @@ public class WebhookController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/waha/{connectionId}")
-    public ResponseEntity<Void> wahaWebhook(@PathVariable UUID connectionId, @RequestBody JsonNode payload) {
-        log.debug("[WAHA] Webhook received for connection {}", connectionId);
-        try {
-            String event = payload.path("event").asText();
-            if ("message".equals(event) || "message.any".equals(event)) {
-                WhatsAppConnection conn = connectionRepo.findById(connectionId).orElseThrow();
-                JsonNode msg = payload.path("payload");
-                String chatId = msg.path("from").asText();
-                String phone = chatId.replace("@c.us", "").replaceAll("[^0-9]", "");
-                String msgId = msg.path("id").asText();
-                String content = msg.path("body").asText(null);
-                
-                dispatcher.dispatch(InboundMessageEvent.builder()
-                    .connectionId(connectionId)
-                    .tenantId(conn.getTenantId())
-                    .externalChatId(chatId)
-                    .senderPhone(phone)
-                    .senderName(msg.path("_data").path("notifyName").asText(null))
-                    .externalMessageId(msgId)
-                    .type(detectType(msg.path("type").asText()))
-                    .content(content)
-                    .mediaUrl(msg.path("mediaUrl").asText(null))
-                    .receivedAt(Instant.now())
-                    .build());
-            }
-        } catch (Exception e) {
-            log.error("[WAHA] Processing error: {}", e.getMessage());
-        }
-        return ResponseEntity.ok().build();
-    }
+    // O webhook do WAHA agora é tratado por WebhookWahaController
+    // (POST /v1/webhooks/waha/{connectionId}) que cobre session.status,
+    // mensagens e mídias com o shape correto.
 
     @GetMapping("/meta/{connectionId}")
     public ResponseEntity<String> metaVerify(
