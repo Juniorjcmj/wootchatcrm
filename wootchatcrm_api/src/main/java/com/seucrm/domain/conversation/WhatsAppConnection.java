@@ -60,6 +60,7 @@ public class WhatsAppConnection extends BaseEntity {
         ZAPI,
         WAHA,
         META_BSP,
-        EVOLUTION
+        EVOLUTION,
+        WPPCONNECT
     }
 }

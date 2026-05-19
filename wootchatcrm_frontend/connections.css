@@ -450,12 +450,14 @@ html[data-theme="dark"] .conn-card__banner.ig i { color: #eb5757; }
 .conn-provider__icon.zapi { background: rgba(244,164,35,0.18); color: #c47d16; }
 .conn-provider__icon.uaz  { background: rgba(155,138,251,0.18); color: #7e6cd6; }
 .conn-provider__icon.waha { background: rgba(38,198,218,0.18);  color: #1a93a0; }
+.conn-provider__icon.wpp  { background: rgba(94,106,210,0.18);  color: var(--wc-accent); }
 .conn-provider__icon.manual { background: rgba(76,183,130,0.12); color: #2f9460; }
 html[data-theme="dark"] .conn-provider__icon.evo    { color: #4cb782; }
 html[data-theme="dark"] .conn-provider__icon.cloud  { color: #828fff; }
 html[data-theme="dark"] .conn-provider__icon.zapi   { color: #f4a423; }
 html[data-theme="dark"] .conn-provider__icon.uaz    { color: #b4a4fa; }
 html[data-theme="dark"] .conn-provider__icon.waha   { color: #26c6da; }
+html[data-theme="dark"] .conn-provider__icon.wpp    { color: #828fff; }
 html[data-theme="dark"] .conn-provider__icon.manual { color: #4cb782; }
 
 .conn-provider__text {

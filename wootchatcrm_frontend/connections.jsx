@@ -18,10 +18,11 @@ const { useState: useC, useEffect: useCE, useMemo: useCM } = React;
 // ============================================================
 
 const PROVIDER_META = {
-  EVOLUTION: { icon: "ti-brand-whatsapp",  banner: "wa", name: "Evolution API",  sub: "WhatsApp", host: "evolutionapi.com" },
-  WAHA:      { icon: "ti-brand-whatsapp",  banner: "wa", name: "WAHA",           sub: "WhatsApp", host: "waha.devlike.pro" },
-  ZAPI:      { icon: "ti-bolt",            banner: "wa", name: "Z-API",          sub: "WhatsApp", host: "z-api.io" },
-  META_BSP:  { icon: "ti-brand-meta",      banner: "fb", name: "Whatsapp Cloud", sub: "WhatsApp", host: "whatsapp.com" },
+  EVOLUTION:  { icon: "ti-brand-whatsapp",  banner: "wa", name: "Evolution API",  sub: "WhatsApp", host: "evolutionapi.com" },
+  WAHA:       { icon: "ti-brand-whatsapp",  banner: "wa", name: "WAHA",           sub: "WhatsApp", host: "waha.devlike.pro" },
+  WPPCONNECT: { icon: "ti-brand-whatsapp",  banner: "wa", name: "WPPConnect",     sub: "WhatsApp", host: "wppconnect.io" },
+  ZAPI:       { icon: "ti-bolt",            banner: "wa", name: "Z-API",          sub: "WhatsApp", host: "z-api.io" },
+  META_BSP:   { icon: "ti-brand-meta",      banner: "fb", name: "Whatsapp Cloud", sub: "WhatsApp", host: "whatsapp.com" },
 };
 
 function metaFor(provider) {
@@ -118,6 +119,11 @@ function CreateConnectionModal({ onClose, onCreated }) {
   const [wahaKey, setWahaKey]       = useC("");
   const [wahaSession, setWahaSession] = useC("default");
 
+  // WPPConnect fields
+  const [wppUrl, setWppUrl]         = useC("");
+  const [wppSecret, setWppSecret]   = useC("");
+  const [wppSession, setWppSession] = useC("default");
+
   const [loading, setLoad]  = useC(false);
   const [err, setErr]       = useC(null);
 
@@ -140,6 +146,29 @@ function CreateConnectionModal({ onClose, onCreated }) {
       if (created && onCreated) onCreated(created);
     } catch (e2) {
       setErr(e2?.detail || e2?.message || "Falha ao criar conexão.");
+    } finally {
+      setLoad(false);
+    }
+  }
+
+  async function submitWpp(e) {
+    e.preventDefault();
+    if (!name.trim() || !wppUrl.trim() || !wppSecret.trim() || !wppSession.trim()) {
+      setErr("Preencha todos os campos.");
+      return;
+    }
+    setLoad(true);
+    setErr(null);
+    try {
+      const created = await window.CrmApi.connections.createWppConnect({
+        name:        name.trim(),
+        baseUrl:     wppUrl.trim().replace(/\/+$/, ""),
+        secretKey:   wppSecret.trim(),
+        sessionName: wppSession.trim().toLowerCase().replace(/\s+/g, "-"),
+      });
+      if (created && onCreated) onCreated(created);
+    } catch (e2) {
+      setErr(e2?.detail || e2?.message || "Falha ao criar conexão WPPConnect.");
     } finally {
       setLoad(false);
     }
@@ -243,6 +272,13 @@ function CreateConnectionModal({ onClose, onCreated }) {
                       <span className="conn-provider__desc">Conecte uma instalação auto-hospedada do WAHA (whatsapp-web.js).</span>
                     </span>
                   </button>
+                  <button className="conn-provider" onClick={() => setStep("form-wpp")}>
+                    <span className="conn-provider__icon wpp"><i className="ti ti-plug-connected" /></span>
+                    <span className="conn-provider__text">
+                      <span className="conn-provider__name">WPPConnect</span>
+                      <span className="conn-provider__desc">Conecte um wppconnect-server auto-hospedado (open-source).</span>
+                    </span>
+                  </button>
                   <button className="conn-provider" disabled>
                     <span className="conn-provider__icon uaz"><i className="ti ti-puzzle" /></span>
                     <span className="conn-provider__text">
@@ -291,6 +327,77 @@ function CreateConnectionModal({ onClose, onCreated }) {
                     onChange={e => setInst(e.target.value)}
                   />
                   <span className="hint">Identificador técnico no Evolution Go. Use minúsculas, sem espaços.</span>
+                </div>
+
+                {err && <div className="conn-form__error">{err}</div>}
+
+                <div className="conn-form__actions">
+                  <button type="button" className="conn-btn-ghost" onClick={() => !loading && onClose()} disabled={loading}>Cancelar</button>
+                  <button type="submit" className="conn-btn-primary" disabled={loading}>
+                    {loading ? "Criando…" : "Criar e obter QR"}
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {step === "form-wpp" && (
+            <>
+              <button
+                className="conn-btn-ghost"
+                style={{ height: 26, padding: "0 10px", fontSize: 11, marginBottom: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
+                onClick={() => setStep("pick")}
+                disabled={loading}
+              >
+                <i className="ti ti-arrow-left" style={{ fontSize: 12 }} /> Voltar
+              </button>
+              <h3 className="conn-modal__title">Nova conexão · WPPConnect</h3>
+              <p className="conn-modal__sub">
+                Conecte um wppconnect-server auto-hospedado. Vamos gerar o token da sessão,
+                iniciar a sessão e configurar o webhook automaticamente.
+              </p>
+
+              <form className="conn-form" onSubmit={submitWpp}>
+                <div className="conn-form__row">
+                  <label>Nome amigável <span style={{ color: "#eb5757" }}>*</span></label>
+                  <input
+                    autoFocus
+                    placeholder="Ex.: WhatsApp Pós-venda"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                  />
+                  <span className="hint">Aparece na lista de conexões.</span>
+                </div>
+
+                <div className="conn-form__row">
+                  <label>URL do WPPConnect <span style={{ color: "#eb5757" }}>*</span></label>
+                  <input
+                    placeholder="https://wppconnect.seudominio.com"
+                    value={wppUrl}
+                    onChange={e => setWppUrl(e.target.value)}
+                  />
+                  <span className="hint">Endpoint do servidor (sem barra no final).</span>
+                </div>
+
+                <div className="conn-form__row">
+                  <label>SECRET_KEY <span style={{ color: "#eb5757" }}>*</span></label>
+                  <input
+                    type="password"
+                    placeholder="SECRET_KEY do .env do wppconnect-server"
+                    value={wppSecret}
+                    onChange={e => setWppSecret(e.target.value)}
+                  />
+                  <span className="hint">Chave global usada para gerar o token da sessão (apenas uma vez).</span>
+                </div>
+
+                <div className="conn-form__row">
+                  <label>Nome da sessão <span style={{ color: "#eb5757" }}>*</span></label>
+                  <input
+                    placeholder="default"
+                    value={wppSession}
+                    onChange={e => setWppSession(e.target.value)}
+                  />
+                  <span className="hint">Identificador da sessão dentro do wppconnect-server.</span>
                 </div>
 
                 {err && <div className="conn-form__error">{err}</div>}

@@ -34,6 +34,13 @@ record CreateWahaConnectionRequest(
         @NotBlank String sessionName    // nome da sessão dentro do WAHA
 ) {}
 
+record CreateWppConnectConnectionRequest(
+        @NotBlank String name,
+        @NotBlank String baseUrl,
+        @NotBlank String secretKey,     // SECRET_KEY global do wppconnect-server
+        @NotBlank String sessionName
+) {}
+
 record ConnectionDto(
         UUID    id,
         String  name,
@@ -62,8 +69,9 @@ record ConnectionDto(
 @RequiredArgsConstructor
 public class ConnectionController {
 
-    private final EvolutionConnectionService evolutionService;
-    private final WahaConnectionService      wahaService;
+    private final EvolutionConnectionService  evolutionService;
+    private final WahaConnectionService       wahaService;
+    private final WppConnectConnectionService wppService;
     private final WhatsAppConnectionRepository connectionRepo;
 
     // GET /v1/connections — lista conexões do tenant atual.
@@ -77,9 +85,10 @@ public class ConnectionController {
                 .findByTenantIdAndActive(tenantId, true)
                 .stream()
                 .map(c -> switch (c.getProvider()) {
-                    case EVOLUTION -> evolutionService.refreshStatus(c.getId());
-                    case WAHA      -> wahaService.refreshStatus(c.getId());
-                    default        -> c;
+                    case EVOLUTION  -> evolutionService.refreshStatus(c.getId());
+                    case WAHA       -> wahaService.refreshStatus(c.getId());
+                    case WPPCONNECT -> wppService.refreshStatus(c.getId());
+                    default         -> c;
                 })
                 .filter(java.util.Objects::nonNull)
                 .map(ConnectionDto::from)
@@ -101,6 +110,28 @@ public class ConnectionController {
                 req.name(),
                 req.baseUrl(),
                 req.apiKey(),
+                req.sessionName().trim().toLowerCase().replaceAll("\\s+", "-"),
+                user.getId()
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ConnectionDto.from(connection));
+    }
+
+    // POST /v1/connections/wppconnect — cria nova conexão WPPConnect
+    @PostMapping("/wppconnect")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ConnectionDto> createWppConnect(
+            @Valid @RequestBody CreateWppConnectConnectionRequest req,
+            @AuthenticationPrincipal User user) {
+
+        UUID tenantId = UUID.fromString(TenantContext.get());
+
+        WhatsAppConnection connection = wppService.createConnection(
+                tenantId,
+                req.name(),
+                req.baseUrl(),
+                req.secretKey(),
                 req.sessionName().trim().toLowerCase().replaceAll("\\s+", "-"),
                 user.getId()
         );
@@ -135,8 +166,9 @@ public class ConnectionController {
     public ResponseEntity<Map<String, String>> getQrCode(@PathVariable UUID id) {
         WhatsAppConnection conn = findOwned(id);
         String base64 = switch (conn.getProvider()) {
-            case WAHA      -> wahaService.getQrCode(id);
-            default        -> evolutionService.getQrCode(id);
+            case WAHA       -> wahaService.getQrCode(id);
+            case WPPCONNECT -> wppService.getQrCode(id);
+            default         -> evolutionService.getQrCode(id);
         };
         if (base64 == null) {
             return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
@@ -150,8 +182,9 @@ public class ConnectionController {
     public ResponseEntity<Map<String, Object>> getStatus(@PathVariable UUID id) {
         WhatsAppConnection initial = findOwned(id);
         WhatsAppConnection conn = switch (initial.getProvider()) {
-            case WAHA      -> wahaService.refreshStatus(id);
-            default        -> evolutionService.refreshStatus(id);
+            case WAHA       -> wahaService.refreshStatus(id);
+            case WPPCONNECT -> wppService.refreshStatus(id);
+            default         -> evolutionService.refreshStatus(id);
         };
         if (conn == null) conn = initial;
 
@@ -179,8 +212,9 @@ public class ConnectionController {
     public ResponseEntity<ConnectionDto> disconnect(@PathVariable UUID id) {
         WhatsAppConnection conn = findOwned(id);
         switch (conn.getProvider()) {
-            case WAHA      -> wahaService.disconnect(id);
-            default        -> evolutionService.disconnect(id);
+            case WAHA       -> wahaService.disconnect(id);
+            case WPPCONNECT -> wppService.disconnect(id);
+            default         -> evolutionService.disconnect(id);
         }
         return ResponseEntity.ok(ConnectionDto.from(connectionRepo.findById(id).orElse(conn)));
     }
@@ -208,8 +242,9 @@ public class ConnectionController {
     public ResponseEntity<ConnectionDto> reconnect(@PathVariable UUID id) {
         WhatsAppConnection conn = findOwned(id);
         switch (conn.getProvider()) {
-            case WAHA      -> wahaService.reconnect(id);
-            default        -> evolutionService.reconnect(id);
+            case WAHA       -> wahaService.reconnect(id);
+            case WPPCONNECT -> wppService.reconnect(id);
+            default         -> evolutionService.reconnect(id);
         }
         return ResponseEntity.ok(ConnectionDto.from(connectionRepo.findById(id).orElse(conn)));
     }

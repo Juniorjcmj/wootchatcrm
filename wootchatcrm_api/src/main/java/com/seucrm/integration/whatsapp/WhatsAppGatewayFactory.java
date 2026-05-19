@@ -12,6 +12,7 @@ public class WhatsAppGatewayFactory {
     private final WahaAdapter wahaAdapter;
     private final MetaBspAdapter metaBspAdapter;
     private final EvolutionGoAdapter evolutionAdapter;
+    private final WppConnectAdapter wppConnectAdapter;
 
     public WhatsAppGateway getGateway(ConnectionProvider provider) {
         return switch (provider) {
@@ -19,6 +20,7 @@ public class WhatsAppGatewayFactory {
             case WAHA -> wahaAdapter;
             case META_BSP -> metaBspAdapter;
             case EVOLUTION -> evolutionAdapter;
+            case WPPCONNECT -> wppConnectAdapter;
         };
     }
 }

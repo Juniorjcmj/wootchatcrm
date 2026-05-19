@@ -158,6 +158,7 @@
     list:             ()                   => get("/v1/connections"),
     createEvolution:  (name, instanceName) => post("/v1/connections/evolution", { name, instanceName }),
     createWaha:       (data)               => post("/v1/connections/waha", data),
+    createWppConnect: (data)               => post("/v1/connections/wppconnect", data),
     getQrCode:        (id)                 => get("/v1/connections/" + id + "/qrcode"),
     getStatus:        (id)                 => get("/v1/connections/" + id + "/status"),
     disconnect:       (id)                 => post("/v1/connections/" + id + "/disconnect"),
