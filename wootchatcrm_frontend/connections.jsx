@@ -109,9 +109,15 @@ function ConnCard({ conn, onConnect, onDisconnect, onReset, onSettings, onDelete
 // ============================================================
 function CreateConnectionModal({ onClose, onCreated }) {
   const [tab, setTab]       = useC("whatsapp");
-  const [step, setStep]     = useC("pick"); // "pick" | "form-evolution"
+  const [step, setStep]     = useC("pick"); // "pick" | "form-evolution" | "form-waha"
   const [name, setName]     = useC("");
   const [inst, setInst]     = useC("");
+
+  // WAHA fields
+  const [wahaUrl, setWahaUrl]       = useC("");
+  const [wahaKey, setWahaKey]       = useC("");
+  const [wahaSession, setWahaSession] = useC("default");
+
   const [loading, setLoad]  = useC(false);
   const [err, setErr]       = useC(null);
 
@@ -134,6 +140,29 @@ function CreateConnectionModal({ onClose, onCreated }) {
       if (created && onCreated) onCreated(created);
     } catch (e2) {
       setErr(e2?.detail || e2?.message || "Falha ao criar conexão.");
+    } finally {
+      setLoad(false);
+    }
+  }
+
+  async function submitWaha(e) {
+    e.preventDefault();
+    if (!name.trim() || !wahaUrl.trim() || !wahaKey.trim() || !wahaSession.trim()) {
+      setErr("Preencha todos os campos.");
+      return;
+    }
+    setLoad(true);
+    setErr(null);
+    try {
+      const created = await window.CrmApi.connections.createWaha({
+        name:        name.trim(),
+        baseUrl:     wahaUrl.trim().replace(/\/+$/, ""),
+        apiKey:      wahaKey.trim(),
+        sessionName: wahaSession.trim().toLowerCase().replace(/\s+/g, "-"),
+      });
+      if (created && onCreated) onCreated(created);
+    } catch (e2) {
+      setErr(e2?.detail || e2?.message || "Falha ao criar conexão WAHA.");
     } finally {
       setLoad(false);
     }
@@ -207,6 +236,13 @@ function CreateConnectionModal({ onClose, onCreated }) {
                       <span className="conn-provider__desc">Crie uma nova conexão com a API do Evolution Go.</span>
                     </span>
                   </button>
+                  <button className="conn-provider" onClick={() => setStep("form-waha")}>
+                    <span className="conn-provider__icon waha"><i className="ti ti-server-bolt" /></span>
+                    <span className="conn-provider__text">
+                      <span className="conn-provider__name">WAHA</span>
+                      <span className="conn-provider__desc">Conecte uma instalação auto-hospedada do WAHA (whatsapp-web.js).</span>
+                    </span>
+                  </button>
                   <button className="conn-provider" disabled>
                     <span className="conn-provider__icon uaz"><i className="ti ti-puzzle" /></span>
                     <span className="conn-provider__text">
@@ -255,6 +291,77 @@ function CreateConnectionModal({ onClose, onCreated }) {
                     onChange={e => setInst(e.target.value)}
                   />
                   <span className="hint">Identificador técnico no Evolution Go. Use minúsculas, sem espaços.</span>
+                </div>
+
+                {err && <div className="conn-form__error">{err}</div>}
+
+                <div className="conn-form__actions">
+                  <button type="button" className="conn-btn-ghost" onClick={() => !loading && onClose()} disabled={loading}>Cancelar</button>
+                  <button type="submit" className="conn-btn-primary" disabled={loading}>
+                    {loading ? "Criando…" : "Criar e obter QR"}
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {step === "form-waha" && (
+            <>
+              <button
+                className="conn-btn-ghost"
+                style={{ height: 26, padding: "0 10px", fontSize: 11, marginBottom: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
+                onClick={() => setStep("pick")}
+                disabled={loading}
+              >
+                <i className="ti ti-arrow-left" style={{ fontSize: 12 }} /> Voltar
+              </button>
+              <h3 className="conn-modal__title">Nova conexão · WAHA</h3>
+              <p className="conn-modal__sub">
+                Conecte uma instalação WAHA (whatsapp-web.js auto-hospedada). Vamos iniciar uma sessão
+                no seu servidor e configurar o webhook automaticamente.
+              </p>
+
+              <form className="conn-form" onSubmit={submitWaha}>
+                <div className="conn-form__row">
+                  <label>Nome amigável <span style={{ color: "#eb5757" }}>*</span></label>
+                  <input
+                    autoFocus
+                    placeholder="Ex.: WhatsApp Vendas"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                  />
+                  <span className="hint">Aparece na lista de conexões.</span>
+                </div>
+
+                <div className="conn-form__row">
+                  <label>URL do WAHA <span style={{ color: "#eb5757" }}>*</span></label>
+                  <input
+                    placeholder="https://waha.seudominio.com"
+                    value={wahaUrl}
+                    onChange={e => setWahaUrl(e.target.value)}
+                  />
+                  <span className="hint">Endpoint do servidor WAHA (inclua https:// e sem barra no final).</span>
+                </div>
+
+                <div className="conn-form__row">
+                  <label>API Key <span style={{ color: "#eb5757" }}>*</span></label>
+                  <input
+                    type="password"
+                    placeholder="X-Api-Key configurada no WAHA"
+                    value={wahaKey}
+                    onChange={e => setWahaKey(e.target.value)}
+                  />
+                  <span className="hint">Valor da env <code>WHATSAPP_API_KEY</code> do WAHA.</span>
+                </div>
+
+                <div className="conn-form__row">
+                  <label>Nome da sessão <span style={{ color: "#eb5757" }}>*</span></label>
+                  <input
+                    placeholder="default"
+                    value={wahaSession}
+                    onChange={e => setWahaSession(e.target.value)}
+                  />
+                  <span className="hint">Identificador da sessão dentro do WAHA. Use minúsculas, sem espaços.</span>
                 </div>
 
                 {err && <div className="conn-form__error">{err}</div>}

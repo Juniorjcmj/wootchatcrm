@@ -438,6 +438,7 @@
 .conn-provider__icon.cloud { background: rgba(94,106,210,0.18); color: #828fff; }
 .conn-provider__icon.zapi { background: rgba(244,164,35,0.18); color: #f4a423; }
 .conn-provider__icon.uaz  { background: rgba(155,138,251,0.18); color: #b4a4fa; }
+.conn-provider__icon.waha { background: rgba(38,198,218,0.18);  color: #26c6da; }
 .conn-provider__icon.manual { background: rgba(76,183,130,0.12); color: #4cb782; }
 
 .conn-provider__text {

@@ -27,6 +27,13 @@ record CreateEvolutionConnectionRequest(
         @NotBlank String instanceName  // nome da instância no Evolution Go: "vendas-01"
 ) {}
 
+record CreateWahaConnectionRequest(
+        @NotBlank String name,          // nome amigável
+        @NotBlank String baseUrl,       // URL do servidor WAHA
+        @NotBlank String apiKey,        // X-Api-Key do WAHA
+        @NotBlank String sessionName    // nome da sessão dentro do WAHA
+) {}
+
 record ConnectionDto(
         UUID    id,
         String  name,
@@ -56,6 +63,7 @@ record ConnectionDto(
 public class ConnectionController {
 
     private final EvolutionConnectionService evolutionService;
+    private final WahaConnectionService      wahaService;
     private final WhatsAppConnectionRepository connectionRepo;
 
     // GET /v1/connections — lista conexões do tenant atual.
@@ -68,13 +76,37 @@ public class ConnectionController {
         List<ConnectionDto> connections = connectionRepo
                 .findByTenantIdAndActive(tenantId, true)
                 .stream()
-                .map(c -> c.getProvider() == WhatsAppConnection.ConnectionProvider.EVOLUTION
-                        ? evolutionService.refreshStatus(c.getId())
-                        : c)
+                .map(c -> switch (c.getProvider()) {
+                    case EVOLUTION -> evolutionService.refreshStatus(c.getId());
+                    case WAHA      -> wahaService.refreshStatus(c.getId());
+                    default        -> c;
+                })
                 .filter(java.util.Objects::nonNull)
                 .map(ConnectionDto::from)
                 .toList();
         return ResponseEntity.ok(connections);
+    }
+
+    // POST /v1/connections/waha — cria nova conexão WAHA
+    @PostMapping("/waha")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ConnectionDto> createWaha(
+            @Valid @RequestBody CreateWahaConnectionRequest req,
+            @AuthenticationPrincipal User user) {
+
+        UUID tenantId = UUID.fromString(TenantContext.get());
+
+        WhatsAppConnection connection = wahaService.createConnection(
+                tenantId,
+                req.name(),
+                req.baseUrl(),
+                req.apiKey(),
+                req.sessionName().trim().toLowerCase().replaceAll("\\s+", "-"),
+                user.getId()
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ConnectionDto.from(connection));
     }
 
     // POST /v1/connections/evolution — cria nova conexão Evolution Go
@@ -101,9 +133,11 @@ public class ConnectionController {
     @GetMapping("/{id}/qrcode")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, String>> getQrCode(@PathVariable UUID id) {
-        validateOwnership(id);
-
-        String base64 = evolutionService.getQrCode(id);
+        WhatsAppConnection conn = findOwned(id);
+        String base64 = switch (conn.getProvider()) {
+            case WAHA      -> wahaService.getQrCode(id);
+            default        -> evolutionService.getQrCode(id);
+        };
         if (base64 == null) {
             return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
         }
@@ -114,11 +148,12 @@ public class ConnectionController {
     @GetMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('ADMIN','SUPERVISOR')")
     public ResponseEntity<Map<String, Object>> getStatus(@PathVariable UUID id) {
-        validateOwnership(id);
-
-        // Consulta o Evolution Go ao vivo (com best-effort fallback pro cache)
-        WhatsAppConnection conn = evolutionService.refreshStatus(id);
-        if (conn == null) conn = findOwned(id);
+        WhatsAppConnection initial = findOwned(id);
+        WhatsAppConnection conn = switch (initial.getProvider()) {
+            case WAHA      -> wahaService.refreshStatus(id);
+            default        -> evolutionService.refreshStatus(id);
+        };
+        if (conn == null) conn = initial;
 
         return ResponseEntity.ok(Map.of(
                 "connectionId", id,
@@ -138,12 +173,15 @@ public class ConnectionController {
         return ResponseEntity.ok(evolutionService.syncContactsFromEvolution(id));
     }
 
-    // POST /v1/connections/{id}/disconnect — faz logout no Evolution Go mas mantém a conexão (active=true)
+    // POST /v1/connections/{id}/disconnect — faz logout no provider mas mantém a conexão (active=true)
     @PostMapping("/{id}/disconnect")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ConnectionDto> disconnect(@PathVariable UUID id) {
         WhatsAppConnection conn = findOwned(id);
-        evolutionService.disconnect(id);
+        switch (conn.getProvider()) {
+            case WAHA      -> wahaService.disconnect(id);
+            default        -> evolutionService.disconnect(id);
+        }
         return ResponseEntity.ok(ConnectionDto.from(connectionRepo.findById(id).orElse(conn)));
     }
 
@@ -169,7 +207,10 @@ public class ConnectionController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ConnectionDto> reconnect(@PathVariable UUID id) {
         WhatsAppConnection conn = findOwned(id);
-        evolutionService.reconnect(id);
+        switch (conn.getProvider()) {
+            case WAHA      -> wahaService.reconnect(id);
+            default        -> evolutionService.reconnect(id);
+        }
         return ResponseEntity.ok(ConnectionDto.from(connectionRepo.findById(id).orElse(conn)));
     }
 
