@@ -13,17 +13,18 @@ ENV TZ=America/Sao_Paulo
 # Limpa o default do nginx
 RUN rm -rf /usr/share/nginx/html/*
 
-# Copia os assets estáticos do frontend
-# (index.html + todos os .jsx/.js/.css)
+# Copia TODO o build context para o html (assets + arquivos de config).
+# Em seguida movemos os arquivos de config para os caminhos certos e
+# limpamos os que não devem ser servidos pela web.
 COPY . /usr/share/nginx/html/
 
-# Configuração customizada do nginx (SPA fallback + cache headers)
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Template do config.js — preenchido em runtime via envsubst
-COPY config.template.js /etc/wootchat/config.template.js
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN mkdir -p /etc/wootchat \
+ && mv /usr/share/nginx/html/nginx.conf            /etc/nginx/conf.d/default.conf \
+ && mv /usr/share/nginx/html/config.template.js    /etc/wootchat/config.template.js \
+ && mv /usr/share/nginx/html/docker-entrypoint.sh  /usr/local/bin/docker-entrypoint.sh \
+ && chmod +x /usr/local/bin/docker-entrypoint.sh \
+ && rm -f /usr/share/nginx/html/Dockerfile \
+          /usr/share/nginx/html/.dockerignore
 
 EXPOSE 80
 

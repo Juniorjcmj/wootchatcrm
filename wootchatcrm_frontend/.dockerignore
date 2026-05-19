@@ -1,10 +1,8 @@
-# Coisas que NÃO devem ir pro /usr/share/nginx/html/
-Dockerfile
-.dockerignore
-nginx.conf
-docker-entrypoint.sh
-config.template.js
-config.js
+# Apenas o que NÃO precisa entrar no build context.
+# Os arquivos de config (Dockerfile, nginx.conf, docker-entrypoint.sh,
+# config.template.js) PRECISAM existir no contexto — o Dockerfile os
+# move/copia pros locais corretos e remove do html/ depois.
+
 logs
 *.log
 .git
