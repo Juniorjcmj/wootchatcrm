@@ -570,14 +570,47 @@ function AudioPlayer({ messageId, duration, mime, hasMedia, mediaUrl }) {
     };
   }, [messageId, hasMedia, mediaUrl]);
 
+  const audioRef = React.useRef(null);
+  const [speed, setSpeed] = useInboxState(1);
+
+  const SPEEDS = [1, 1.5, 2];
+  function cycleSpeed() {
+    const idx = SPEEDS.indexOf(speed);
+    const next = SPEEDS[(idx + 1) % SPEEDS.length];
+    setSpeed(next);
+    if (audioRef.current) audioRef.current.playbackRate = next;
+  }
+
+  // Quando o src é resetado (novo áudio), reaplica o playbackRate atual.
+  useInboxEffect(() => {
+    if (audioRef.current) audioRef.current.playbackRate = speed;
+  }, [src]);
+
   if (error) {
     return <div style={{ color: "var(--wc-ink-subtle)", fontSize: 12 }}>Não foi possível carregar o áudio</div>;
   }
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       {src
-        ? <audio controls src={src} style={{ width: 240, height: 32 }} />
+        ? <audio ref={audioRef} controls src={src} style={{ width: 220, height: 32 }} />
         : <span style={{ color: "var(--wc-ink-subtle)", fontSize: 12 }}>Carregando áudio…</span>}
+      {src && (
+        <button
+          onClick={cycleSpeed}
+          title="Velocidade de reprodução"
+          style={{
+            minWidth: 36, height: 26, padding: "0 6px",
+            borderRadius: 14, fontSize: 11, fontWeight: 600,
+            background: speed === 1 ? "var(--wc-surface-2, rgba(255,255,255,0.06))" : "var(--wc-accent)",
+            color: speed === 1 ? "var(--wc-ink, #d0d6e0)" : "#fff",
+            border: "1px solid " + (speed === 1 ? "var(--wc-border, #2e3036)" : "var(--wc-accent)"),
+            cursor: "pointer",
+            transition: "background 120ms ease",
+          }}
+        >
+          {speed}×
+        </button>
+      )}
       {duration && <span style={{ color: "var(--wc-ink-subtle)", fontSize: 11 }}>{duration}</span>}
     </div>
   );
