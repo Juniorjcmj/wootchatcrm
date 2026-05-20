@@ -272,10 +272,12 @@ function CreateConnectionModal({ onClose, onCreated }) {
                       <span className="conn-provider__desc">Conecte uma instalação auto-hospedada do WAHA (whatsapp-web.js).</span>
                     </span>
                   </button>
-                  <button className="conn-provider" onClick={() => setStep("form-wpp")}>
+                  {/* WPPConnect desabilitado por enquanto — backend e form continuam no código
+                      (basta remover `disabled` e o badge "Em breve" pra reativar). */}
+                  <button className="conn-provider" disabled>
                     <span className="conn-provider__icon wpp"><i className="ti ti-plug-connected" /></span>
                     <span className="conn-provider__text">
-                      <span className="conn-provider__name">WPPConnect</span>
+                      <span className="conn-provider__name">WPPConnect <span className="soon">Em breve</span></span>
                       <span className="conn-provider__desc">Conecte um wppconnect-server auto-hospedado (open-source).</span>
                     </span>
                   </button>
