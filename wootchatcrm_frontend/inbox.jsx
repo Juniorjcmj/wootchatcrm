@@ -543,7 +543,7 @@ function AudioPlayer({ messageId, duration, mime, hasMedia, mediaUrl }) {
 
     let cancelled = false;
     let blobUrl = null;
-    const base = "http://localhost:8080/api";
+    const base = (window.__API_BASE__ && window.__API_BASE__.trim()) || "http://localhost:8080/api";
     const token = JSON.parse(localStorage.getItem("crm-auth") || "{}").accessToken || "";
 
     fetch(base + "/v1/messages/" + messageId + "/media", {
@@ -593,7 +593,7 @@ function useMediaBlob(messageId, mimeHint) {
     if (!messageId) return;
     let cancelled = false;
     let blobUrl = null;
-    const base = "http://localhost:8080/api";
+    const base = (window.__API_BASE__ && window.__API_BASE__.trim()) || "http://localhost:8080/api";
     const token = JSON.parse(localStorage.getItem("crm-auth") || "{}").accessToken || "";
 
     fetch(base + "/v1/messages/" + messageId + "/media", {
