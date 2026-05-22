@@ -8,9 +8,10 @@ import java.util.UUID;
 
 public interface WhatsAppConnectionRepository extends JpaRepository<WhatsAppConnection, UUID> {
     List<WhatsAppConnection> findByTenantIdAndActive(UUID tenantId, Boolean active);
+    List<WhatsAppConnection> findByActive(Boolean active);
     Optional<WhatsAppConnection> findByIdAndTenantId(UUID id, UUID tenantId);
     List<WhatsAppConnection> findByTenantIdAndProvider(
-        UUID tenantId, 
+        UUID tenantId,
         WhatsAppConnection.ConnectionProvider provider
     );
 }

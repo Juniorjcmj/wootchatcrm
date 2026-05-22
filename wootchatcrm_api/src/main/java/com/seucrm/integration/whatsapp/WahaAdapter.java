@@ -223,6 +223,44 @@ public class WahaAdapter implements WhatsAppGateway {
     }
 
     /**
+     * Atualiza a config de webhook da sessão SEM reiniciar.
+     * Endpoint: PUT /api/sessions/{name}
+     *
+     * Usado pelo self-healing periódico: re-aplica o webhook caso o WAHA
+     * tenha perdido a configuração (ex: container reiniciou).
+     */
+    public void updateWebhook(UUID connectionId, String webhookUrl) {
+        WahaCredentials c = creds(connectionId);
+
+        Map<String, Object> body = Map.of(
+                "config", Map.of(
+                        "webhooks", List.of(Map.of(
+                                "url",    webhookUrl,
+                                "events", List.of("message", "session.status")
+                        ))
+                )
+        );
+
+        try {
+            webClient.put()
+                    .uri(c.baseUrl() + "/api/sessions/" + c.session())
+                    .header("X-Api-Key", c.apiKey())
+                    .header("Content-Type", "application/json")
+                    .bodyValue(body)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, resp ->
+                            resp.bodyToMono(String.class)
+                                .flatMap(err -> Mono.error(
+                                        new RuntimeException("[WAHA] PUT session → " + err))))
+                    .bodyToMono(JsonNode.class)
+                    .block();
+            log.debug("[WAHA] Webhook re-aplicado para session '{}'", c.session());
+        } catch (Exception e) {
+            log.warn("[WAHA] updateWebhook falhou para session {}: {}", c.session(), e.getMessage());
+        }
+    }
+
+    /**
      * Para a sessão (sem deslogar — mantém o pareamento).
      */
     public void stopSession(UUID connectionId) {

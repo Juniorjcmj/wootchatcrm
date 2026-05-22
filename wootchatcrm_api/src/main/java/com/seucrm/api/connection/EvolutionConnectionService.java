@@ -357,11 +357,11 @@ public class EvolutionConnectionService {
      */
     @Scheduled(fixedDelay = 120_000)
     public void syncConnectionStatuses() {
-        List<WhatsAppConnection> activeConnections =
-                connectionRepo.findByTenantIdAndActive(null, true)
-                        .stream()
-                        .filter(c -> c.getProvider() == WhatsAppConnection.ConnectionProvider.EVOLUTION)
-                        .toList();
+        // findByActive(true) — antes era findByTenantIdAndActive(null, true), que em SQL
+        // vira `tenant_id = NULL` (sempre falso) e o job ficava varrendo lista vazia.
+        List<WhatsAppConnection> activeConnections = connectionRepo.findByActive(true).stream()
+                .filter(c -> c.getProvider() == WhatsAppConnection.ConnectionProvider.EVOLUTION)
+                .toList();
 
         if (activeConnections.isEmpty()) return;
 
@@ -378,6 +378,20 @@ public class EvolutionConnectionService {
                     connectionRepo.save(conn);
                     log.info("[EVOLUTION] Status atualizado — conexão {}: connected={}",
                             conn.getId(), nowConnected);
+                }
+
+                // Self-healing: re-aplica webhook a cada ciclo enquanto a conexão
+                // estiver ativa. Cobre o caso em que o Evolution Go perdeu a config
+                // (reinício de container) e mensagens parariam de chegar até o
+                // próximo /resync-webhook manual.
+                if (nowConnected) {
+                    try {
+                        String webhookUrl = webhookBaseUrl + "/v1/webhooks/evolution/" + conn.getId();
+                        evolutionAdapter.setupWebhook(conn.getId(), webhookUrl);
+                    } catch (Exception e) {
+                        log.debug("[EVOLUTION] Falha ao re-aplicar webhook em {}: {}",
+                                conn.getId(), e.getMessage());
+                    }
                 }
             } catch (Exception e) {
                 log.warn("[EVOLUTION] Falha ao sincronizar conexão {}: {}",

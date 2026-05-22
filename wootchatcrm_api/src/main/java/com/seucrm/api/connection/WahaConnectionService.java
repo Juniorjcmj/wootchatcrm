@@ -11,11 +11,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -150,6 +152,51 @@ public class WahaConnectionService {
         connectionRepo.findById(connectionId).ifPresent(c -> {
             c.setConnected(false);
             connectionRepo.save(c);
+        });
+    }
+
+    // ── Sync automático de status + self-healing de webhook ──
+
+    /**
+     * A cada 2 minutos, varre todas as conexões WAHA ativas:
+     *   1. Atualiza o estado `connected` no banco a partir do gateway.
+     *   2. Se a sessão está WORKING, re-aplica a config de webhook.
+     *
+     * Por que re-aplicar webhook? O WAHA pode perder a config (reinício do
+     * container, fim de cache, etc.). Quando isso acontece, mensagens
+     * chegam no WhatsApp mas o webhook nunca dispara — a CRM "só sincroniza
+     * quando aberta", porque é o tráfego do frontend que acaba acordando
+     * a sessão. Este job blindar contra esse cenário.
+     */
+    @Scheduled(fixedDelay = 120_000)
+    public void syncConnectionStatuses() {
+        List<WhatsAppConnection> activeConnections = connectionRepo.findByActive(true).stream()
+                .filter(c -> c.getProvider() == WhatsAppConnection.ConnectionProvider.WAHA)
+                .toList();
+
+        if (activeConnections.isEmpty()) return;
+
+        log.debug("[WAHA] Sincronizando status de {} conexões", activeConnections.size());
+
+        activeConnections.forEach(conn -> {
+            try {
+                var status = wahaAdapter.getStatus(conn.getId());
+                boolean nowConnected = status.isConnected();
+
+                if (!Boolean.valueOf(nowConnected).equals(conn.getConnected())) {
+                    conn.setConnected(nowConnected);
+                    if (nowConnected) conn.setLastConnectedAt(Instant.now());
+                    connectionRepo.save(conn);
+                    log.info("[WAHA] Status atualizado — conexão {}: connected={}", conn.getId(), nowConnected);
+                }
+
+                if (nowConnected) {
+                    String webhookUrl = webhookBaseUrl + "/v1/webhooks/waha/" + conn.getId();
+                    wahaAdapter.updateWebhook(conn.getId(), webhookUrl);
+                }
+            } catch (Exception e) {
+                log.warn("[WAHA] Falha ao sincronizar conexão {}: {}", conn.getId(), e.getMessage());
+            }
         });
     }
 
