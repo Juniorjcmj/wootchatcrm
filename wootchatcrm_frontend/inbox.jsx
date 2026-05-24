@@ -112,17 +112,49 @@ function _fmtDuration(s) {
 // ============================================================
 // Data hooks
 // ============================================================
-function useConversations(filters) {
-  const [data,    setData]    = React.useState({ content: [], totalElements: 0 });
-  const [loading, setLoading] = React.useState(true);
+const CONV_PAGE_SIZE = 30;
 
-  function reload() {
-    if (!window.CrmApi) { setLoading(false); return; }
-    setLoading(true);
-    window.CrmApi.conversations.list(filters || {})
-      .then(r => { if (r) setData(r); })
+function useConversations(filters) {
+  const [data,        setData]        = React.useState({ content: [], totalElements: 0 });
+  const [loading,     setLoading]     = React.useState(true);
+  const [loadingMore, setLoadingMore] = React.useState(false);
+  const [page,        setPage]        = React.useState(0);
+  const [hasMore,     setHasMore]     = React.useState(true);
+  // Guard contra fetches concorrentes do mesmo loadMore (scroll dispara rápido).
+  const fetchingRef = React.useRef(false);
+
+  function fetchPage(p, replace) {
+    if (!window.CrmApi) {
+      if (replace) setLoading(false);
+      return Promise.resolve();
+    }
+    if (fetchingRef.current) return Promise.resolve();
+    fetchingRef.current = true;
+    if (replace) setLoading(true); else setLoadingMore(true);
+
+    const params = { ...(filters || {}), page: p, size: CONV_PAGE_SIZE };
+    return window.CrmApi.conversations.list(params)
+      .then(r => {
+        if (!r) return;
+        const incoming = r.content || [];
+        setData(prev => ({
+          ...r,
+          content: replace ? incoming : [...(prev.content || []), ...incoming],
+        }));
+        setPage(p);
+        setHasMore(incoming.length >= CONV_PAGE_SIZE);
+      })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => {
+        fetchingRef.current = false;
+        if (replace) setLoading(false); else setLoadingMore(false);
+      });
+  }
+
+  function reload()   { return fetchPage(0, true);  }
+  function loadMore() {
+    if (loadingMore || loading || !hasMore) return Promise.resolve();
+    return fetchPage(page + 1, false);
   }
 
   useInboxEffect(() => { reload(); }, [JSON.stringify(filters || {})]);
@@ -143,7 +175,7 @@ function useConversations(filters) {
     return () => window.WsService.unsubscribe(dest);
   }, []);
 
-  return { data, loading, reload };
+  return { data, loading, loadingMore, hasMore, reload, loadMore };
 }
 
 function useMessages(conversationId) {
@@ -206,7 +238,7 @@ function useSendMessage(conversationId, onSent) {
 // ============================================================
 // Column A — Conversation list
 // ============================================================
-function ConvList({ conversations, activeId, onSelect, loading }) {
+function ConvList({ conversations, activeId, onSelect, loading, loadingMore, hasMore, onLoadMore }) {
   const [activeStatus,  setActiveStatus]  = useInboxState("todos");
   const [activeConnId,  setActiveConnId]  = useInboxState(null);   // null = "Todas"
   const [connMenuOpen,  setConnMenuOpen]  = useInboxState(false);
@@ -346,18 +378,42 @@ function ConvList({ conversations, activeId, onSelect, loading }) {
         </div>
       </div>
 
-      <div className="conv-list">
+      <div
+        className="conv-list"
+        onScroll={(e) => {
+          if (!onLoadMore || !hasMore || loadingMore || loading) return;
+          const el = e.currentTarget;
+          // dispara quando faltam <200px pro fim
+          if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
+            onLoadMore();
+          }
+        }}
+      >
         {loading && filtered.length === 0 ? (
           <div style={{ padding: 16, color: "var(--wc-ink-subtle)", fontSize: 12 }}>Carregando conversas…</div>
         ) : filtered.length === 0 ? (
           <div style={{ padding: 16, color: "var(--wc-ink-subtle)", fontSize: 12 }}>Nenhuma conversa.</div>
-        ) : filtered.map(c => (
-          <ConvRow
-            key={c.id}
-            c={{ ...c, active: c.id === activeId }}
-            onClick={() => onSelect && onSelect(c.id)}
-          />
-        ))}
+        ) : (
+          <>
+            {filtered.map(c => (
+              <ConvRow
+                key={c.id}
+                c={{ ...c, active: c.id === activeId }}
+                onClick={() => onSelect && onSelect(c.id)}
+              />
+            ))}
+            {loadingMore && (
+              <div style={{ padding: 12, textAlign: "center", color: "var(--wc-ink-subtle)", fontSize: 12 }}>
+                Carregando mais…
+              </div>
+            )}
+            {!hasMore && conversations.length > 0 && (
+              <div style={{ padding: 12, textAlign: "center", color: "var(--wc-ink-subtle)", fontSize: 11 }}>
+                Fim da lista
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
@@ -1471,7 +1527,7 @@ function CreateDealModal({ leadId, leadName, onClose, onCreated }) {
 // Inbox shell — 3 columns
 // ============================================================
 function InboxScreen() {
-  const { data, loading, reload } = useConversations({});
+  const { data, loading, loadingMore, hasMore, reload, loadMore } = useConversations({});
   const conversations = useInboxMemo(() => (data.content || []).map(mapConversation), [data]);
 
   const [activeId, setActiveId] = useInboxState(null);
@@ -1514,7 +1570,7 @@ function InboxScreen() {
 
   return (
     <div className="content--inbox" data-screen-label="02 Multiatendimento">
-      <ConvList conversations={conversations} activeId={active && active.id} onSelect={setActiveId} loading={loading} />
+      <ConvList conversations={conversations} activeId={active && active.id} onSelect={setActiveId} loading={loading} loadingMore={loadingMore} hasMore={hasMore} onLoadMore={loadMore} />
       <ChatPanel conversation={active} messages={messages} onSend={send} onSendMedia={sendMedia} sending={sending} usingMock={false} />
       <SidePanel conversation={active} onLeadUpdate={reload} />
     </div>
