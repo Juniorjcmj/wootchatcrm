@@ -178,17 +178,60 @@ function useConversations(filters) {
   return { data, loading, loadingMore, hasMore, reload, loadMore };
 }
 
+const MSG_PAGE_SIZE = 50;
+
 function useMessages(conversationId) {
-  const [messages, setMessages] = React.useState([]);
-  const [loading,  setLoading]  = React.useState(false);
+  const [messages,    setMessages]    = React.useState([]);
+  const [loading,     setLoading]     = React.useState(false);
+  const [loadingMore, setLoadingMore] = React.useState(false);
+  const [page,        setPage]        = React.useState(0);
+  const [hasMore,     setHasMore]     = React.useState(true);
+  const fetchingRef = React.useRef(false);
+
+  function fetchPage(convId, p, replace) {
+    if (!convId || !window.CrmApi) return Promise.resolve();
+    if (fetchingRef.current) return Promise.resolve();
+    fetchingRef.current = true;
+    if (replace) setLoading(true); else setLoadingMore(true);
+
+    return window.CrmApi.conversations.getMessages(convId, p, MSG_PAGE_SIZE)
+      .then(r => {
+        if (!r) return;
+        const incoming = r.content || [];
+        setMessages(prev => {
+          const base = replace ? [] : prev;
+          const seen = new Set(base.map(m => m.id));
+          const merged = base.slice();
+          for (const m of incoming) {
+            if (!seen.has(m.id)) {
+              seen.add(m.id);
+              merged.push(m);
+            }
+          }
+          return merged;
+        });
+        setPage(p);
+        setHasMore(incoming.length >= MSG_PAGE_SIZE);
+      })
+      .catch(() => {})
+      .finally(() => {
+        fetchingRef.current = false;
+        if (replace) setLoading(false); else setLoadingMore(false);
+      });
+  }
+
+  function loadMore() {
+    if (loadingMore || loading || !hasMore || !conversationId) return Promise.resolve();
+    return fetchPage(conversationId, page + 1, false);
+  }
 
   useInboxEffect(() => {
-    if (!conversationId || !window.CrmApi) { setMessages([]); return; }
-    setLoading(true);
-    window.CrmApi.conversations.getMessages(conversationId)
-      .then(r => { if (r) setMessages(r.content || []); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    if (!conversationId || !window.CrmApi) {
+      setMessages([]); setPage(0); setHasMore(true);
+      return;
+    }
+    setPage(0); setHasMore(true);
+    fetchPage(conversationId, 0, true);
 
     if (!window.WsService) return;
     const dest = "/topic/conversation/" + conversationId;
@@ -198,7 +241,7 @@ function useMessages(conversationId) {
     return () => window.WsService.unsubscribe(dest);
   }, [conversationId]);
 
-  return { messages, setMessages, loading };
+  return { messages, setMessages, loading, loadingMore, hasMore, loadMore };
 }
 
 function useSendMessage(conversationId, onSent) {
@@ -477,7 +520,7 @@ function ConvRow({ c, onClick }) {
 // ============================================================
 // Column B — Active conversation
 // ============================================================
-function ChatPanel({ conversation, messages, onSend, onSendMedia, sending, usingMock }) {
+function ChatPanel({ conversation, messages, onSend, onSendMedia, sending, usingMock, loadingMore, hasMore, onLoadMore }) {
   if (!conversation) {
     return (
       <div className="chat-col" style={{ display: "grid", placeItems: "center" }}>
@@ -531,19 +574,41 @@ function ChatPanel({ conversation, messages, onSend, onSendMedia, sending, using
         </div>
       </div>
 
-      <ChatStream messages={messages} />
+      <ChatStream messages={messages} loadingMore={loadingMore} hasMore={hasMore} onLoadMore={onLoadMore} />
       <Composer onSend={onSend} onSendMedia={onSendMedia} sending={sending} leadName={a.lead} disabled={usingMock} />
     </div>
   );
 }
 
-function ChatStream({ messages }) {
+function ChatStream({ messages, loadingMore, hasMore, onLoadMore }) {
   const streamRef = useInboxRef(null);
+  const prevLenRef = useInboxRef(0);
   const list = messages || [];
 
+  // Auto-scroll só em (a) load inicial e (b) append unitário (WS recebeu uma
+  // mensagem ou o user enviou). Em batches grandes (loadMore paginando) o
+  // user fica onde está pra não criar loop com o scroll handler.
   useInboxEffect(() => {
-    if (streamRef.current) streamRef.current.scrollTop = streamRef.current.scrollHeight;
+    const prev = prevLenRef.current;
+    const curr = list.length;
+    prevLenRef.current = curr;
+    if (!streamRef.current || curr === 0) return;
+    const isInitial = prev === 0;
+    const isSingleAppend = curr === prev + 1;
+    if (isInitial || isSingleAppend) {
+      streamRef.current.scrollTop = streamRef.current.scrollHeight;
+    }
   }, [messages]);
+
+  function handleScroll(e) {
+    if (!onLoadMore || !hasMore || loadingMore) return;
+    const el = e.currentTarget;
+    // perto do fim → busca mensagens mais novas (backend está em ASC, então
+    // próxima página = mais recentes).
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 120) {
+      onLoadMore();
+    }
+  }
 
   if (list.length === 0) {
     return (
@@ -554,7 +619,7 @@ function ChatStream({ messages }) {
   }
 
   return (
-    <div className="chat-stream" ref={streamRef}>
+    <div className="chat-stream" ref={streamRef} onScroll={handleScroll}>
       {list.map((m, i) => {
         if (m.kind === "date") {
           return <div key={i} className="date-divider">{m.label}</div>;
@@ -577,6 +642,11 @@ function ChatStream({ messages }) {
         }
         return <Message key={i} m={m} />;
       })}
+      {loadingMore && (
+        <div style={{ padding: 8, textAlign: "center", color: "var(--wc-ink-subtle)", fontSize: 11 }}>
+          Carregando mais…
+        </div>
+      )}
     </div>
   );
 }
@@ -1561,7 +1631,7 @@ function InboxScreen() {
 
   const active = conversations.find(c => c.id === activeId) || null;
 
-  const { messages: apiMsgs, setMessages } = useMessages(activeId);
+  const { messages: apiMsgs, setMessages, loadingMore: msgsLoadingMore, hasMore: msgsHasMore, loadMore: msgsLoadMore } = useMessages(activeId);
   const messages = useInboxMemo(() => apiMsgs.map(mapMessage), [apiMsgs]);
 
   const { send, sendMedia, sending } = useSendMessage(activeId, (msg) => {
@@ -1571,7 +1641,7 @@ function InboxScreen() {
   return (
     <div className="content--inbox" data-screen-label="02 Multiatendimento">
       <ConvList conversations={conversations} activeId={active && active.id} onSelect={setActiveId} loading={loading} loadingMore={loadingMore} hasMore={hasMore} onLoadMore={loadMore} />
-      <ChatPanel conversation={active} messages={messages} onSend={send} onSendMedia={sendMedia} sending={sending} usingMock={false} />
+      <ChatPanel conversation={active} messages={messages} onSend={send} onSendMedia={sendMedia} sending={sending} usingMock={false} loadingMore={msgsLoadingMore} hasMore={msgsHasMore} onLoadMore={msgsLoadMore} />
       <SidePanel conversation={active} onLeadUpdate={reload} />
     </div>
   );
